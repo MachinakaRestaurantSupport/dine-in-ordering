@@ -7,7 +7,7 @@
 ## 1. プロジェクト基盤・実装
 - [x] 1.1 `pyproject.toml` の作成（`dine-in-ordering` パッケージ、pytest・ruff 設定）
 - [x] 1.2 Pydantic モデル（`src/dine_in_ordering/models.py`）の実装
-- [ ] 1.3 外部サービスクライアント（`src/dine_in_ordering/clients.py`）の実装
+- [x] 1.3 外部サービスクライアント（`src/dine_in_ordering/clients.py`）の実装
 - [ ] 1.4 FastAPI アプリケーションとエンドポイント（`src/dine_in_ordering/main.py`, `__init__.py`）の実装
 
 ## 2. 単体試験・品質検証
