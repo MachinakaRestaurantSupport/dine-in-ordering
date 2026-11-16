@@ -40,15 +40,9 @@ def create_app(
     order_client: OrderClient | None = None,
 ) -> FastAPI:
     """店内注文サービスの FastAPI アプリケーションを生成する."""
-    guest = guest_client or GuestClient(
-        base_url=os.getenv("GUEST_SERVICE_URL", "http://localhost")
-    )
-    menu = menu_client or MenuClient(
-        base_url=os.getenv("MENU_SERVICE_URL", "http://localhost")
-    )
-    order = order_client or OrderClient(
-        base_url=os.getenv("ORDER_SERVICE_URL", "http://localhost")
-    )
+    guest = guest_client or GuestClient(base_url=os.getenv("GUEST_SERVICE_URL", "http://localhost"))
+    menu = menu_client or MenuClient(base_url=os.getenv("MENU_SERVICE_URL", "http://localhost"))
+    order = order_client or OrderClient(base_url=os.getenv("ORDER_SERVICE_URL", "http://localhost"))
 
     fastapi_app = FastAPI(title="Dine-In Ordering Service", version="0.1.0")
 
