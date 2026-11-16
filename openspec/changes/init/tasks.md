@@ -11,5 +11,5 @@
 - [x] 1.4 FastAPI アプリケーションとエンドポイント（`src/dine_in_ordering/main.py`, `__init__.py`）の実装
 
 ## 2. 単体試験・品質検証
-- [ ] 2.1 `httpx.MockTransport` を用いた単体試験（`tests/test_dine_in.py`）の作成と `pytest` 実行
+- [x] 2.1 `httpx.MockTransport` を用いた単体試験（`tests/test_dine_in.py`）の作成と `pytest` 実行
 - [ ] 2.2 `ruff` による静的解析・フォーマット確認
