@@ -12,6 +12,7 @@ from dine_in_ordering.models import (
     SessionVerifyRequest,
     SessionVerifyResponse,
 )
+from dine_in_ordering.ui import create_ui_router
 
 
 def _verify_table_session(
@@ -45,6 +46,7 @@ def create_app(
     order = order_client or OrderClient(base_url=os.getenv("ORDER_SERVICE_URL", "http://localhost"))
 
     fastapi_app = FastAPI(title="Dine-In Ordering Service", version="0.1.0")
+    fastapi_app.include_router(create_ui_router(guest, menu, order))
 
     @fastapi_app.get("/health", response_model=HealthResponse)
     def health() -> HealthResponse:

@@ -34,6 +34,12 @@ class GuestClient(_BaseServiceClient):
         response.raise_for_status()
         return response.json()
 
+    def list_tables(self) -> list[dict[str, Any]]:
+        """登録済み席一覧を取得する."""
+        response = self._client.get("/tables")
+        response.raise_for_status()
+        return response.json()
+
 
 class MenuClient(_BaseServiceClient):
     """メニュー管理サービス（menu-management）クライアント."""
@@ -59,5 +65,11 @@ class OrderClient(_BaseServiceClient):
         response = self._client.get(f"/orders/{order_id}")
         if response.status_code == 404:
             return None
+        response.raise_for_status()
+        return response.json()
+
+    def list_orders(self) -> list[dict[str, Any]]:
+        """注文一覧を取得する."""
+        response = self._client.get("/orders")
         response.raise_for_status()
         return response.json()

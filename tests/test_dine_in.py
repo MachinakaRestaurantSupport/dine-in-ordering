@@ -222,3 +222,12 @@ def test_get_dine_in_order() -> None:
 
     not_found = client.get("/dine-in/orders/ORD-999")
     assert not_found.status_code == 404
+
+
+def test_dine_in_ui_screens() -> None:
+    """店内注文UIの3画面が200 HTMLで応答すること."""
+    client = _make_test_client()
+    for path in ("/ui/dine-in/session", "/ui/dine-in/menu", "/ui/dine-in/status"):
+        res = client.get(path)
+        assert res.status_code == 200
+        assert "店内注文" in res.text
