@@ -5,7 +5,7 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, status
 
-from dine_in_ordering.clients import GuestClient, MenuClient, OrderClient
+from dine_in_ordering.clients import GuestClient, MenuClient, OrderClient, ProductClient
 from dine_in_ordering.models import (
     DineInOrderRequest,
     HealthResponse,
@@ -39,11 +39,15 @@ def create_app(
     guest_client: GuestClient | None = None,
     menu_client: MenuClient | None = None,
     order_client: OrderClient | None = None,
+    product_client: ProductClient | None = None,
 ) -> FastAPI:
     """店内注文サービスの FastAPI アプリケーションを生成する."""
     guest = guest_client or GuestClient(base_url=os.getenv("GUEST_SERVICE_URL", "http://localhost"))
     menu = menu_client or MenuClient(base_url=os.getenv("MENU_SERVICE_URL", "http://localhost"))
     order = order_client or OrderClient(base_url=os.getenv("ORDER_SERVICE_URL", "http://localhost"))
+    product = product_client or ProductClient(
+        base_url=os.getenv("PRODUCT_SERVICE_URL", "http://localhost")
+    )
 
     fastapi_app = FastAPI(title="Dine-In Ordering Service", version="0.1.0")
     fastapi_app.include_router(create_ui_router(guest, menu, order))
@@ -68,12 +72,33 @@ def create_app(
     @fastapi_app.post("/dine-in/orders", status_code=status.HTTP_201_CREATED)
     def create_dine_in_order(request: DineInOrderRequest) -> Any:
         table = _verify_table_session(guest, request.table_id, request.qr_token)
+        resolved_items: list[dict[str, Any]] = []
+        for item in request.items:
+            prod = product.get_product(item.product_id)
+            if prod is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Product '{item.product_id}' not found",
+                )
+            if request.is_takeout_from_table and not prod.get("takeout_available", True):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"Product '{item.product_id}' is not available for takeout",
+                )
+            resolved_items.append(
+                {
+                    "product_id": item.product_id,
+                    "product_name": prod["name"],
+                    "unit_price": int(prod["price"]),
+                    "quantity": item.quantity,
+                }
+            )
         order_payload = {
             "source": "dine_in",
             "table_id": request.table_id,
             "session_id": table.get("current_session_id"),
             "is_takeout_from_table": request.is_takeout_from_table,
-            "items": [item.model_dump() for item in request.items],
+            "items": resolved_items,
         }
         return order.create_order(order_payload)
 

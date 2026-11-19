@@ -6,7 +6,7 @@ from typing import Any
 import httpx
 from fastapi.testclient import TestClient
 
-from dine_in_ordering.clients import GuestClient, MenuClient, OrderClient
+from dine_in_ordering.clients import GuestClient, MenuClient, OrderClient, ProductClient
 from dine_in_ordering.main import create_app
 
 
@@ -35,6 +35,10 @@ def _make_test_client(
         {"product_id": "P1", "name": "ハンバーグランチ", "price": 1200},
         {"product_id": "P2", "name": "アイスコーヒー", "price": 450},
     ]
+    product_store = {
+        "P1": {"id": "P1", "name": "ハンバーグランチ", "price": 1200, "takeout_available": False},
+        "P2": {"id": "P2", "name": "アイスコーヒー", "price": 450, "takeout_available": True},
+    }
     order_store = orders if orders is not None else {}
     captured = recorded_order_requests if recorded_order_requests is not None else []
 
@@ -66,10 +70,19 @@ def _make_test_client(
             return httpx.Response(200, json=order_store[order_id])
         return httpx.Response(404)
 
+    def product_handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET" and request.url.path.startswith("/products/"):
+            product_id = request.url.path.removeprefix("/products/")
+            if product_id not in product_store:
+                return httpx.Response(404, json={"detail": "Product not found"})
+            return httpx.Response(200, json=product_store[product_id])
+        return httpx.Response(404)
+
     app = create_app(
         guest_client=GuestClient(transport=httpx.MockTransport(guest_handler)),
         menu_client=MenuClient(transport=httpx.MockTransport(menu_handler)),
         order_client=OrderClient(transport=httpx.MockTransport(order_handler)),
+        product_client=ProductClient(transport=httpx.MockTransport(product_handler)),
     )
     return TestClient(app)
 
@@ -161,7 +174,14 @@ def test_create_dine_in_order() -> None:
         "table_id": "T1",
         "session_id": "S-001",
         "is_takeout_from_table": False,
-        "items": [{"product_id": "P1", "quantity": 2}],
+        "items": [
+            {
+                "product_id": "P1",
+                "product_name": "ハンバーグランチ",
+                "unit_price": 1200,
+                "quantity": 2,
+            }
+        ],
     }
 
 
@@ -231,3 +251,51 @@ def test_dine_in_ui_screens() -> None:
         res = client.get(path)
         assert res.status_code == 200
         assert "店内注文" in res.text
+
+
+def test_create_order_overrides_client_unit_price_with_master_price() -> None:
+    """クライアントが不正な単価を送信しても商品マスタの正本価格で上書きされる."""
+    recorded: list[dict[str, Any]] = []
+    client = _make_test_client(recorded_order_requests=recorded)
+
+    response = client.post(
+        "/dine-in/orders",
+        json={
+            "table_id": "T1",
+            "qr_token": "qr-secret-t1",
+            "is_takeout_from_table": False,
+            "items": [{"product_id": "P1", "unit_price": 1, "quantity": 2}],
+        },
+    )
+    assert response.status_code == 201
+    assert recorded[0]["items"][0]["unit_price"] == 1200
+    assert recorded[0]["items"][0]["product_name"] == "ハンバーグランチ"
+
+
+def test_create_order_unknown_product_returns_404() -> None:
+    """存在しない商品IDを指定した場合は 404 を返す."""
+    client = _make_test_client()
+    response = client.post(
+        "/dine-in/orders",
+        json={
+            "table_id": "T1",
+            "qr_token": "qr-secret-t1",
+            "items": [{"product_id": "UNKNOWN", "quantity": 1}],
+        },
+    )
+    assert response.status_code == 404
+
+
+def test_create_takeout_from_table_unavailable_product_returns_422() -> None:
+    """店内発持ち帰りで持ち帰り不可商品を指定した場合は 422 を返す."""
+    client = _make_test_client()
+    response = client.post(
+        "/dine-in/orders",
+        json={
+            "table_id": "T1",
+            "qr_token": "qr-secret-t1",
+            "is_takeout_from_table": True,
+            "items": [{"product_id": "P1", "quantity": 1}],
+        },
+    )
+    assert response.status_code == 422
