@@ -51,6 +51,18 @@ class MenuClient(_BaseServiceClient):
         return response.json()
 
 
+class ProductClient(_BaseServiceClient):
+    """商品管理サービス（product-management）クライアント."""
+
+    def get_product(self, product_id: str) -> dict[str, Any] | None:
+        """商品マスタから商品詳細を取得する。存在しない場合は None を返す."""
+        response = self._client.get(f"/products/{product_id}")
+        if response.status_code == 404:
+            return None
+        response.raise_for_status()
+        return response.json()
+
+
 class OrderClient(_BaseServiceClient):
     """注文管理サービス（order-management）クライアント."""
 
